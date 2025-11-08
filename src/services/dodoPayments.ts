@@ -200,13 +200,55 @@ export async function processPaymentWebhook(payload: any) {
   }
 
   // Handle payment failures
-  if (eventType === 'payment.failed' || eventType === 'payment.cancelled') {
-    console.warn('⚠️ Payment failed or cancelled:', {
+  if (eventType === 'payment.failed') {
+    const metadata = data.metadata || {};
+    const userId = metadata.userId || metadata.user_id;
+    const customerEmail = data.customer?.email;
+    
+    console.error('❌ PAYMENT FAILED:', {
       paymentId: data?.payment_id,
+      checkoutSessionId: data?.checkout_session_id,
+      userId,
+      customerEmail,
       errorCode: data?.error_code,
       errorMessage: data?.error_message,
+      cardLastFour: data?.card_last_four,
+      cardNetwork: data?.card_network,
+      totalAmount: data?.total_amount,
+      currency: data?.currency,
+      status: data?.status,
     });
-    return null;
+    
+    // Log to webhook_events for tracking
+    return {
+      type: 'payment_failed',
+      paymentId: data?.payment_id,
+      userId,
+      customerEmail,
+      errorCode: data?.error_code,
+      errorMessage: data?.error_message,
+    };
+  }
+
+  // Handle payment cancellations
+  if (eventType === 'payment.cancelled') {
+    const metadata = data.metadata || {};
+    const userId = metadata.userId || metadata.user_id;
+    const customerEmail = data.customer?.email;
+    
+    console.warn('⚠️ PAYMENT CANCELLED:', {
+      paymentId: data?.payment_id,
+      checkoutSessionId: data?.checkout_session_id,
+      userId,
+      customerEmail,
+    });
+    
+    return {
+      type: 'payment_cancelled',
+      paymentId: data?.payment_id,
+      userId,
+      customerEmail,
+    };
   }
 
   console.log('❓ Unhandled webhook event:', eventType, 'payload_type:', payloadType);

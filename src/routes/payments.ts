@@ -131,7 +131,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     // Process webhook based on event type
     const result = await processPaymentWebhook(payload);
 
-    if (result) {
+    if (result && result.credits) {
       console.log('💳 Processing credit addition for user:', result.userId);
       
       // Update user credits in database
@@ -191,6 +191,22 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       } else {
         console.warn('⚠️ User profile not found:', result.userId);
       }
+    } else if (result && result.type === 'payment_failed') {
+      // Log payment failure for debugging
+      console.error('💳 Payment failed - no credits added');
+      console.error(`   User: ${result.userId || 'unknown'}`);
+      console.error(`   Email: ${result.customerEmail || 'unknown'}`);
+      console.error(`   Payment ID: ${result.paymentId}`);
+      console.error(`   Error Code: ${result.errorCode}`);
+      console.error(`   Error Message: ${result.errorMessage}`);
+      
+      // TODO: Optionally notify user via email about failed payment
+    } else if (result && result.type === 'payment_cancelled') {
+      // Log payment cancellation
+      console.warn('💳 Payment cancelled by user');
+      console.warn(`   User: ${result.userId || 'unknown'}`);
+      console.warn(`   Email: ${result.customerEmail || 'unknown'}`);
+      console.warn(`   Payment ID: ${result.paymentId}`);
     } else {
       console.log('ℹ️ Webhook processed but no action needed (event type not handled)');
     }
