@@ -92,23 +92,49 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 Frontend URL: ${FRONTEND_URL}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
   console.log(`🌍 Listening on 0.0.0.0:${PORT}`);
+  console.log(`✅ Server is ready to accept connections`);
+  
+  // Keep-alive logging to prevent Railway from thinking the app is idle
+  setInterval(() => {
+    console.log(`💓 Server heartbeat - ${new Date().toISOString()}`);
+  }, 30000); // Every 30 seconds
 });
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
   console.log('⚠️ SIGTERM received, shutting down gracefully...');
+  
+  // Force exit after 10 seconds if graceful shutdown hangs
+  const forceExitTimer = setTimeout(() => {
+    console.error('❌ Graceful shutdown timeout, forcing exit');
+    process.exit(1);
+  }, 10000);
+  
   server.close(() => {
-    console.log('✅ Server closed');
+    clearTimeout(forceExitTimer);
+    console.log('✅ Server closed gracefully');
     process.exit(0);
   });
+  
+  // Immediately stop accepting new connections
+  server.closeAllConnections?.();
 });
 
 process.on('SIGINT', () => {
   console.log('⚠️ SIGINT received, shutting down gracefully...');
+  
+  const forceExitTimer = setTimeout(() => {
+    console.error('❌ Graceful shutdown timeout, forcing exit');
+    process.exit(1);
+  }, 10000);
+  
   server.close(() => {
-    console.log('✅ Server closed');
+    clearTimeout(forceExitTimer);
+    console.log('✅ Server closed gracefully');
     process.exit(0);
   });
+  
+  server.closeAllConnections?.();
 });
 
 // Handle uncaught errors
