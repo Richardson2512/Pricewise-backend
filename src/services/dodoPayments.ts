@@ -138,38 +138,78 @@ export async function verifyWebhookSignature(
 
 /**
  * Process payment webhook event
+ * Handles Dodo Payments webhook structure
  */
 export async function processPaymentWebhook(payload: any) {
   const eventType = payload.type;
-  const payloadType = payload.data?.payload_type; // 'Payment' or 'Subscription'
+  const data = payload.data;
+  const payloadType = data?.payload_type; // 'Payment' or 'Subscription'
 
   console.log('📨 Processing webhook:', {
     eventType,
     payloadType,
-    paymentId: payload.data?.payment_id,
+    paymentId: data?.payment_id,
+    checkoutSessionId: data?.checkout_session_id,
+    status: data?.status,
+    totalAmount: data?.total_amount,
+    currency: data?.currency,
   });
 
-  // Handle one-time payments
-  if (payloadType === 'Payment' && eventType === 'payment.succeeded') {
-    const metadata = payload.data?.metadata || {};
-    const paymentId = payload.data?.payment_id;
-    const amount = payload.data?.amount || 0;
+  // Handle successful payments
+  if (payloadType === 'Payment' && eventType === 'payment.succeeded' && data?.status === 'succeeded') {
+    const metadata = data.metadata || {};
+    const paymentId = data.payment_id;
+    const totalAmount = data.total_amount || data.settlement_amount || 0; // Amount in cents
+    const currency = data.currency || 'USD';
+    const customerEmail = data.customer?.email;
+    const productCart = data.product_cart || [];
+
+    console.log('💰 Payment succeeded:', {
+      paymentId,
+      totalAmount,
+      currency,
+      customerEmail,
+      metadata,
+      productCart,
+    });
+
+    // Extract userId and credits from metadata
+    const userId = metadata.userId || metadata.user_id;
+    const credits = metadata.credits ? parseInt(metadata.credits) : 0;
+
+    if (!userId) {
+      console.error('❌ No userId found in metadata:', metadata);
+      return null;
+    }
+
+    if (!credits || credits <= 0) {
+      console.error('❌ Invalid credits amount:', credits);
+      return null;
+    }
 
     return {
-      userId: metadata.userId || metadata.user_id,
-      credits: parseInt(metadata.credits || '0'),
-      amount: amount / 100, // Convert from cents to dollars
+      userId,
+      credits,
+      amount: totalAmount / 100, // Convert from cents to dollars
       paymentId,
+      currency,
+      customerEmail,
+      checkoutSessionId: data.checkout_session_id,
+      productCart,
     };
   }
 
   // Handle payment failures
   if (eventType === 'payment.failed' || eventType === 'payment.cancelled') {
-    console.warn('⚠️ Payment failed or cancelled:', payload.data?.payment_id);
+    console.warn('⚠️ Payment failed or cancelled:', {
+      paymentId: data?.payment_id,
+      errorCode: data?.error_code,
+      errorMessage: data?.error_message,
+    });
     return null;
   }
 
-  console.log('❓ Unhandled webhook event:', eventType);
+  console.log('❓ Unhandled webhook event:', eventType, 'payload_type:', payloadType);
   return null;
 }
 

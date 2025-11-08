@@ -132,24 +132,42 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const result = await processPaymentWebhook(payload);
 
     if (result) {
+      console.log('💳 Processing credit addition for user:', result.userId);
+      
       // Update user credits in database
-      const { data: profile } = await supabaseAdmin
+      const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
-        .select('credits')
+        .select('credits, email')
         .eq('id', result.userId)
         .single();
 
+      if (profileError) {
+        console.error('❌ Error fetching profile:', profileError);
+        return res.status(200).json({ received: true, error: 'Profile not found' });
+      }
+
       if (profile) {
-        const newCredits = (profile.credits || 0) + result.credits;
+        const oldCredits = profile.credits || 0;
+        const newCredits = oldCredits + result.credits;
+
+        console.log(`💰 Updating credits: ${oldCredits} → ${newCredits} (+${result.credits})`);
 
         // Update credits
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from('profiles')
-          .update({ credits: newCredits })
+          .update({ 
+            credits: newCredits,
+            updated_at: new Date().toISOString(),
+          })
           .eq('id', result.userId);
 
+        if (updateError) {
+          console.error('❌ Error updating credits:', updateError);
+          return res.status(200).json({ received: true, error: 'Failed to update credits' });
+        }
+
         // Record purchase
-        await supabaseAdmin
+        const { error: purchaseError } = await supabaseAdmin
           .from('credit_purchases')
           .insert({
             user_id: result.userId,
@@ -159,10 +177,22 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             purchase_date: new Date().toISOString(),
           });
 
-        console.log(`✅ Credits added: ${result.credits} credits to user ${result.userId} (Payment: ${result.paymentId})`);
+        if (purchaseError) {
+          console.error('❌ Error recording purchase:', purchaseError);
+          // Don't return error - credits were added successfully
+        }
+
+        console.log(`✅ SUCCESS: Added ${result.credits} credits to user ${result.userId}`);
+        console.log(`   Email: ${profile.email}`);
+        console.log(`   Old balance: ${oldCredits} credits`);
+        console.log(`   New balance: ${newCredits} credits`);
+        console.log(`   Payment ID: ${result.paymentId}`);
+        console.log(`   Amount paid: $${result.amount} ${result.currency || 'USD'}`);
       } else {
         console.warn('⚠️ User profile not found:', result.userId);
       }
+    } else {
+      console.log('ℹ️ Webhook processed but no action needed (event type not handled)');
     }
 
     // Always respond with 200 OK to acknowledge receipt

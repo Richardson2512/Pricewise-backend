@@ -10,7 +10,7 @@ import paymentsRouter from './routes/payments.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Security middleware
