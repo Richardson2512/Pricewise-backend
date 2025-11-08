@@ -17,22 +17,33 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(helmet());
 
 // CORS configuration - Allow all production domains
+const allowedOrigins = [
+  'http://localhost:5173', // Local development
+  'http://localhost:5174', // Alternative local port
+  'https://howmuchshouldiprice.com', // Production (non-www)
+  'https://www.howmuchshouldiprice.com', // Production (www)
+];
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173', // Local development
-    'http://localhost:5174', // Alternative local port
-    'https://howmuchshouldiprice.com', // Production (non-www)
-    'https://www.howmuchshouldiprice.com', // Production (www)
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400, // 24 hours
 }));
 
-console.log('✅ CORS enabled for:', [
-  'https://howmuchshouldiprice.com',
-  'https://www.howmuchshouldiprice.com',
-]);
+console.log('✅ CORS enabled for:', allowedOrigins);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -50,7 +61,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    cors: allowedOrigins,
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0',
+  });
 });
 
 // API routes
