@@ -16,48 +16,23 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 // Security middleware
 app.use(helmet());
 
-// CORS configuration - support multiple origins for Vercel deployments
-const allowedOrigins: (string | RegExp)[] = [
-  'http://localhost:5173', // Local development
-  'http://localhost:5174', // Alternative local port
-  'https://howmuchshouldiprice.com', // Production (non-www)
-  'https://www.howmuchshouldiprice.com', // Production (www)
-  FRONTEND_URL, // Production frontend from env
-];
-
-// Add Vercel preview deployments support
-if (process.env.NODE_ENV === 'production') {
-  allowedOrigins.push(/\.vercel\.app$/); // Allow all Vercel preview URLs
-  allowedOrigins.push(/howmuchshouldiprice\.com$/); // Allow all domain variations
-}
-
+// CORS configuration - Allow all production domains
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    console.log('🔍 CORS check for origin:', origin);
-    
-    // Check if origin is in allowed list or matches Vercel pattern
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (typeof allowed === 'string') return allowed === origin;
-      if (allowed instanceof RegExp) return allowed.test(origin);
-      return false;
-    });
-    
-    if (isAllowed) {
-      console.log('✅ CORS allowed for:', origin);
-      callback(null, true);
-    } else {
-      console.warn('❌ CORS blocked for:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'http://localhost:5173', // Local development
+    'http://localhost:5174', // Alternative local port
+    'https://howmuchshouldiprice.com', // Production (non-www)
+    'https://www.howmuchshouldiprice.com', // Production (www)
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+console.log('✅ CORS enabled for:', [
+  'https://howmuchshouldiprice.com',
+  'https://www.howmuchshouldiprice.com',
+]);
 
 // Rate limiting
 const limiter = rateLimit({
