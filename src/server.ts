@@ -36,6 +36,8 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
+    console.log('🔍 CORS check for origin:', origin);
+    
     // Check if origin is in allowed list or matches Vercel pattern
     const isAllowed = allowedOrigins.some(allowed => {
       if (typeof allowed === 'string') return allowed === origin;
@@ -44,12 +46,17 @@ app.use(cors({
     });
     
     if (isAllowed) {
+      console.log('✅ CORS allowed for:', origin);
       callback(null, true);
     } else {
+      console.warn('❌ CORS blocked for:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Rate limiting
