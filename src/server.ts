@@ -20,12 +20,15 @@ app.use(helmet());
 const allowedOrigins: (string | RegExp)[] = [
   'http://localhost:5173', // Local development
   'http://localhost:5174', // Alternative local port
-  FRONTEND_URL, // Production frontend
+  'https://howmuchshouldiprice.com', // Production (non-www)
+  'https://www.howmuchshouldiprice.com', // Production (www)
+  FRONTEND_URL, // Production frontend from env
 ];
 
 // Add Vercel preview deployments support
 if (process.env.NODE_ENV === 'production') {
   allowedOrigins.push(/\.vercel\.app$/); // Allow all Vercel preview URLs
+  allowedOrigins.push(/howmuchshouldiprice\.com$/); // Allow all domain variations
 }
 
 app.use(cors({
