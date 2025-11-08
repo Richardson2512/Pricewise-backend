@@ -50,53 +50,75 @@ interface CreateCheckoutParams {
 }
 
 /**
- * Create a checkout session using Dodo Payments SDK
+ * Create a checkout session using Dodo Payments SDK with retry logic
  */
-export async function createCheckoutSession(params: CreateCheckoutParams) {
-  try {
-    // Build checkout payload
-    const checkoutPayload: any = {
-      product_cart: [
-        {
-          product_id: params.productId,
-          quantity: params.quantity,
-        }
-      ],
-      feature_flags: {
-        allow_discount_code: params.allowDiscountCodes || true, // Enable discount codes
-      },
-      return_url: params.successUrl,
-      customer: {
-        email: params.customerEmail || '',
-        name: params.customerEmail?.split('@')[0] || 'Customer',
-      },
-      metadata: params.metadata, // Must be string key-value pairs
-    };
+export async function createCheckoutSession(params: CreateCheckoutParams, retries = 3) {
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Build checkout payload
+      const checkoutPayload: any = {
+        product_cart: [
+          {
+            product_id: params.productId,
+            quantity: params.quantity,
+          }
+        ],
+        feature_flags: {
+          allow_discount_code: params.allowDiscountCodes || true, // Enable discount codes
+        },
+        return_url: params.successUrl,
+        customer: {
+          email: params.customerEmail || '',
+          name: params.customerEmail?.split('@')[0] || 'Customer',
+        },
+        metadata: params.metadata, // Must be string key-value pairs
+      };
 
-    console.log('📤 Creating checkout session:', {
-      productId: params.productId,
-      credits: params.metadata.credits,
-      email: params.customerEmail,
-    });
+      console.log(`📤 Creating checkout session (attempt ${attempt}/${retries}):`, {
+        productId: params.productId,
+        credits: params.metadata.credits,
+        email: params.customerEmail,
+      });
 
-    // Create checkout using SDK
-    const checkoutResponse = await dodoClient.checkoutSessions.create(checkoutPayload);
+      // Create checkout using SDK
+      const checkoutResponse = await dodoClient.checkoutSessions.create(checkoutPayload);
 
-    console.log('✅ Checkout session created:', {
-      sessionId: checkoutResponse.session_id,
-      checkoutUrl: checkoutResponse.checkout_url,
-    });
+      console.log('✅ Checkout session created:', {
+        sessionId: checkoutResponse.session_id,
+        checkoutUrl: checkoutResponse.checkout_url,
+      });
 
-    return {
-      id: checkoutResponse.session_id,
-      url: checkoutResponse.checkout_url,
-      productId: params.productId,
-      status: 'created',
-    };
-  } catch (error: any) {
-    console.error('❌ Dodo Payments checkout error:', error);
-    throw new Error(`Failed to create checkout: ${error.message}`);
+      return {
+        id: checkoutResponse.session_id,
+        url: checkoutResponse.checkout_url,
+        productId: params.productId,
+        status: 'created',
+      };
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Dodo Payments checkout error (attempt ${attempt}/${retries}):`, {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+      });
+
+      // Don't retry on client errors (4xx)
+      if (error.status && error.status >= 400 && error.status < 500) {
+        break;
+      }
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < retries) {
+        const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.log(`⏳ Retrying in ${waitTime / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
   }
+
+  throw new Error(`Failed to create checkout after ${retries} attempts: ${lastError?.message || 'Unknown error'}`);
 }
 
 /**
