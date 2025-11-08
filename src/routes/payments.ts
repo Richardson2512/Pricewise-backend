@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
-import { supabaseAdmin } from '../config/supabase';
-import { createCheckoutSession, getProductIdForCredits, processPaymentWebhook, verifyWebhookSignature } from '../services/dodoPayments';
+import { supabaseAdmin } from '../config/supabase.js';
+import { createCheckoutSession, getProductIdForCredits, processPaymentWebhook, verifyWebhookSignature } from '../services/dodoPayments.js';
 
 const router = Router();
 
