@@ -1,7 +1,7 @@
 // Market data scraping service
 // Integrates with Python scraper service on Render
 
-const SCRAPER_URL = process.env.RENDER_SCRAPER_URL;
+const SCRAPER_URL = process.env.SCRAPER_SERVICE_URL || process.env.RENDER_SCRAPER_URL;
 
 export interface MarketListing {
   source: string;

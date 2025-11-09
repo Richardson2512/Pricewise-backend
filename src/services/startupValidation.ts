@@ -54,13 +54,14 @@ export function validateStartup(): ServiceStatus[] {
   });
   
   // Optional Services (for enhanced features)
+  const scraperUrl = process.env.SCRAPER_SERVICE_URL || process.env.RENDER_SCRAPER_URL;
   services.push({
     name: 'Render Scraper Service',
     required: false,
-    configured: !!process.env.RENDER_SCRAPER_URL,
-    message: process.env.RENDER_SCRAPER_URL 
-      ? `✅ Configured: ${process.env.RENDER_SCRAPER_URL}` 
-      : 'ℹ️ Optional - using mock market data (set RENDER_SCRAPER_URL for real scraping)',
+    configured: !!scraperUrl,
+    message: scraperUrl 
+      ? `✅ Configured: ${scraperUrl}` 
+      : 'ℹ️ Optional - using mock market data (set SCRAPER_SERVICE_URL for real scraping)',
   });
   services.push({
     name: 'LocationIQ API (Geocoding)',
