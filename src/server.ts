@@ -53,15 +53,29 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
+// Health check endpoint - must respond quickly
 app.get('/health', (req, res) => {
-  res.json({
+  res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     cors: allowedOrigins,
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
+    uptime: process.uptime(),
   });
+});
+
+// Additional health check routes Railway might use
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'HowMuchShouldIPrice Backend API',
+    status: 'running',
+    health: '/health',
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
 // API routes
@@ -94,24 +108,34 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   }, 30000); // Every 30 seconds
 });
 
-// Handle graceful shutdown
+// Handle graceful shutdown - but log and investigate first
 process.on('SIGTERM', () => {
-  console.log('⚠️ SIGTERM received, shutting down gracefully...');
+  console.log('⚠️ SIGTERM received at:', new Date().toISOString());
+  console.log('📊 Server uptime:', process.uptime(), 'seconds');
+  console.log('📊 Memory usage:', process.memoryUsage());
+  console.log('🔍 This should NOT happen immediately after start!');
   
-  // Force exit after 10 seconds if graceful shutdown hangs
-  const forceExitTimer = setTimeout(() => {
-    console.error('❌ Graceful shutdown timeout, forcing exit');
-    process.exit(1);
-  }, 10000);
+  // Don't exit immediately - log and wait
+  console.log('⏳ Waiting 5 seconds before shutdown...');
   
-  server.close(() => {
-    clearTimeout(forceExitTimer);
-    console.log('✅ Server closed gracefully');
-    process.exit(0);
-  });
-  
-  // Immediately stop accepting new connections
-  server.closeAllConnections?.();
+  setTimeout(() => {
+    console.log('⚠️ Proceeding with graceful shutdown...');
+    
+    // Force exit after 10 seconds if graceful shutdown hangs
+    const forceExitTimer = setTimeout(() => {
+      console.error('❌ Graceful shutdown timeout, forcing exit');
+      process.exit(1);
+    }, 10000);
+    
+    server.close(() => {
+      clearTimeout(forceExitTimer);
+      console.log('✅ Server closed gracefully');
+      process.exit(0);
+    });
+    
+    // Immediately stop accepting new connections
+    server.closeAllConnections?.();
+  }, 5000);
 });
 
 process.on('SIGINT', () => {
