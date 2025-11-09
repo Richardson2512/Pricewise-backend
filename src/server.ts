@@ -24,26 +24,20 @@ const allowedOrigins = [
   'https://www.howmuchshouldiprice.com', // Production (www)
 ];
 
+// Simple CORS - allow all origins for now to debug
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn('❌ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins temporarily
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Length', 'X-Request-Id'],
   maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
 
-console.log('✅ CORS enabled for:', allowedOrigins);
+console.log('✅ CORS enabled for ALL ORIGINS (debug mode)');
+console.log('📋 Intended origins:', allowedOrigins);
 
 // Rate limiting
 const limiter = rateLimit({
