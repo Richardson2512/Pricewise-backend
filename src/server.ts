@@ -6,8 +6,12 @@ import dotenv from 'dotenv';
 import consultationsRouter from './routes/consultations.js';
 import creditsRouter from './routes/credits.js';
 import paymentsRouter from './routes/payments.js';
+import { logStartupStatus } from './services/startupValidation.js';
 
 dotenv.config();
+
+// Validate all services before starting server
+logStartupStatus();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
